@@ -21,10 +21,10 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Installer le programme des prix
-        run: pip install il-supermarket-scraper
+        run: pip install "il-supermarket-scraper==1.0.8"
 
       - name: Télécharger les prix des 11 villes
         env:
