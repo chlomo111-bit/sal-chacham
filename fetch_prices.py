@@ -13,10 +13,33 @@ et fabrique prices.json pour le site.
  3. écrit prices/<ville>.json + prices/cities.json
  3. garde les produits (code-barres) vendus dans au moins 3 magasins -> comparaison juste
 """
-import argparse, asyncio, glob, gzip, json, os, re, shutil, zipfile, datetime
+import argparse, asyncio, glob, gzip, json, os, re, shutil, zipfile, datetime, time, urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 from il_supermarket_scarper.scrappers_factory import ScraperFactory
 from il_supermarket_scarper.utils.file_output import DiskFileOutput
+
+# géocodage des adresses de magasin (OpenStreetMap/Nominatim, gratuit, sans clé)
+# -> pour afficher chaque magasin à sa vraie position sur la carte 3D, par ville
+_GEOCACHE = {}
+def geocode(address, city):
+    key = (address or "").strip() + "|" + city
+    if key in _GEOCACHE:
+        return _GEOCACHE[key]
+    q = f"{address}, {city}, ישראל" if address else f"{city}, ישראל"
+    url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+        {"q": q, "format": "json", "limit": 1, "countrycodes": "il"})
+    lat = lng = None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "sal-chacham-app/1.0 (github.com/chlomo111-bit/sal-chacham)"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        if data:
+            lat, lng = float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    time.sleep(1.1)  # politique Nominatim : max 1 requête/seconde
+    _GEOCACHE[key] = (lat, lng)
+    return lat, lng
 
 # chaîne de l'app -> nom du scraper
 CHAINS = {
@@ -162,7 +185,10 @@ async def main(outdir):
                     if not prices:
                         print(f"  ! {chain} {st['id']} ({cname}) : aucun prix"); continue
                     sid = f"{chain}-{st['id']}"
-                    per_city[cid]["stores"].append({"id": sid, "chain": chain, "short": st["address"][:18], "address": st["address"], "lat": st.get("lat"), "lng": st.get("lng")})
+                    lat, lng = st.get("lat"), st.get("lng")
+                    if not lat or not lng:
+                        lat, lng = geocode(st.get("address", ""), cname)
+                    per_city[cid]["stores"].append({"id": sid, "chain": chain, "short": st["address"][:18], "address": st["address"], "lat": lat, "lng": lng})
                     for code, x in prices.items():
                         c = per_city[cid]["catalog"].setdefault(code, {"b": code, "n": x["n"], "m": x["m"], "p": {}})
                         c["p"][sid] = x["price"]
