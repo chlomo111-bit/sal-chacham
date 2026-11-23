@@ -20,24 +20,45 @@ from il_supermarket_scarper.utils.file_output import DiskFileOutput
 
 # géocodage des adresses de magasin (OpenStreetMap/Nominatim, gratuit, sans clé)
 # -> pour afficher chaque magasin à sa vraie position sur la carte 3D, par ville
+# essaie plusieurs formulations, de la plus précise à la plus simple, avant d'abandonner
 _GEOCACHE = {}
-def geocode(address, city):
-    key = (address or "").strip() + "|" + city
-    if key in _GEOCACHE:
-        return _GEOCACHE[key]
-    q = f"{address}, {city}, ישראל" if address else f"{city}, ישראל"
+def _nominatim(q):
     url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
         {"q": q, "format": "json", "limit": 1, "countrycodes": "il"})
-    lat = lng = None
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "sal-chacham-app/1.0 (github.com/chlomo111-bit/sal-chacham)"})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read().decode())
         if data:
-            lat, lng = float(data[0]["lat"]), float(data[0]["lon"])
+            return float(data[0]["lat"]), float(data[0]["lon"])
     except Exception:
         pass
-    time.sleep(1.1)  # politique Nominatim : max 1 requête/seconde
+    return None, None
+
+def geocode(address, city):
+    key = (address or "").strip() + "|" + city
+    if key in _GEOCACHE:
+        return _GEOCACHE[key]
+    addr = (address or "").strip()
+    candidates = []
+    if addr:
+        candidates.append(addr)
+        # formulation simplifiée : juste "rue + numéro", sans nom de centre commercial/carrefour
+        m = re.match(r"^([֐-׿][֐-׿'\- ]*?\s\d+)", addr)
+        if m and m.group(1).strip() != addr:
+            candidates.append(m.group(1).strip())
+        # juste le premier mot (nom de rue) + la ville
+        first_word = addr.split()[0] if addr.split() else ""
+        if first_word and first_word not in candidates:
+            candidates.append(first_word)
+    candidates.append("")  # dernier recours : centre-ville
+    lat = lng = None
+    for cand in candidates:
+        q = f"{cand}, {city}, ישראל" if cand else f"{city}, ישראל"
+        lat, lng = _nominatim(q)
+        time.sleep(1.1)  # politique Nominatim : max 1 requête/seconde
+        if lat:
+            break
     _GEOCACHE[key] = (lat, lng)
     return lat, lng
 
