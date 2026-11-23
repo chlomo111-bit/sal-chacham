@@ -1,0 +1,44 @@
+name: Prix du jour
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # chaque jour à 03:00 UTC = 05:00 en Israël (06:00 en été)
+  workflow_dispatch:       # bouton « Run workflow » pour lancer à la main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prix
+  cancel-in-progress: false
+
+jobs:
+  prix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer le programme des prix
+        run: pip install il-supermarket-scraper
+
+      - name: Télécharger les prix des 11 villes
+        env:
+          XML_STORE_PATH: ${{ runner.temp }}/dumps
+        run: |
+          mkdir -p publish/prices
+          python fetch_prices.py --out publish/prices
+          cp index.html publish/index.html
+
+      - name: Mettre en ligne (branche gh-pages)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./publish
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "prix du jour"
