@@ -16,6 +16,7 @@ et fabrique prices.json pour le site.
 import argparse, asyncio, glob, gzip, json, os, re, shutil, zipfile, datetime
 import xml.etree.ElementTree as ET
 from il_supermarket_scarper.scrappers_factory import ScraperFactory
+from il_supermarket_scarper.utils.file_output import DiskFileOutput
 
 # chaîne de l'app -> nom du scraper
 CHAINS = {
@@ -81,12 +82,14 @@ async def download(scraper_name, files_types, store_id=None, folder=None):
     cls = ScraperFactory.get(scraper_name)
     if cls is None:
         return []
-    os.environ["XML_STORE_PATH"] = folder
-    inst = cls()
-    try:
-        await inst.scrape(files_types=files_types, store_id=store_id)
-    except TypeError:  # ancienne version de la librairie
-        await inst.scrape(files_types=files_types)
+    os.makedirs(folder, exist_ok=True)
+    inst = cls(file_output=DiskFileOutput(storage_path=folder))  # dossier explicite (le défaut de la librairie plante)
+    gen = inst.scrape(files_types=files_types, store_id=store_id) if store_id else inst.scrape(files_types=files_types)
+    if hasattr(gen, "__aiter__"):      # la librairie renvoie les fichiers au fur et à mesure
+        async for _ in gen:
+            pass
+    else:
+        await gen
     return glob.glob(os.path.join(folder, "**", "*"), recursive=True)
 
 
@@ -165,7 +168,7 @@ async def main(outdir):
                         c["p"][sid] = x["price"]
                     print(f"  {cname} · {sid}: {len(prices)} produits")
         except Exception as e:  # une chaîne en panne ne bloque pas les autres
-            print(f"  ! {chain}: {e}")
+            print(f"  ! {chain}: {type(e).__name__}: {e}")
     now = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
     index = []
     for cid, d in per_city.items():
