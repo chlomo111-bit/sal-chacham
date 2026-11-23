@@ -41,4 +41,5 @@ jobs:
           publish_dir: ./publish
           publish_branch: gh-pages
           force_orphan: true
+          cname: app.assoulineweb.com
           commit_message: "prix du jour"
