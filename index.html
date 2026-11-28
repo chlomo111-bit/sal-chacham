@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>סל חכם 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#050b18;font-family:Heebo,sans-serif;color:#e8f1ff}
+#c{position:fixed;inset:0}
+#hud{position:fixed;top:14px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+.kicker{font-size:13px;color:#8fb3e8;letter-spacing:.5px}
+#big{font-size:46px;font-weight:900;color:#5ef2c9;text-shadow:0 0 18px rgba(94,242,201,.55);line-height:1.1}
+#status{font-size:13px;color:#b9cdee;margin-top:2px;padding:0 14px}
+#labels{position:fixed;inset:0;pointer-events:none;z-index:2}
+.lb{position:absolute;transform:translate(-50%,-135%);background:rgba(5,15,35,.82);border:1px solid var(--c);border-radius:9px;padding:3px 8px;font-size:11px;white-space:nowrap;text-align:center;box-shadow:0 0 10px var(--c);transition:transform .2s}
+.lb b{display:block;font-size:14px;font-weight:900}
+.lb.best{background:rgba(10,60,45,.92);border-color:#5ef2c9;box-shadow:0 0 22px #5ef2c9;transform:translate(-50%,-135%) scale(1.18)}
+.lb .chip{display:none;background:#5ef2c9;color:#04261c;font-weight:900;border-radius:6px;padding:0 5px;margin-top:2px}
+.lb.best .chip{display:block}
+#list{position:fixed;top:120px;right:8px;width:44%;max-width:260px;max-height:42vh;overflow:auto;z-index:3;font-size:11px;display:none;background:rgba(5,15,35,.7);border:1px solid #1d3a6b;border-radius:10px;padding:6px}
+.it{display:flex;justify-content:space-between;gap:6px;padding:3px 2px;border-bottom:1px solid #12274a;animation:in .35s ease}
+.it.nf{color:#6b7fa3}
+.it span:last-child{color:#ffc24b;font-weight:700}
+@keyframes in{from{opacity:0;transform:translateX(30px)}to{opacity:1}}
+#sheet{position:fixed;left:10px;right:10px;bottom:12px;z-index:4;background:rgba(7,18,42,.92);border:1px solid #1d3a6b;border-radius:16px;padding:10px;backdrop-filter:blur(6px)}
+textarea{width:100%;height:84px;background:#030915;color:#e8f1ff;border:1px solid #1d3a6b;border-radius:10px;padding:8px;font:14px Heebo;resize:none}
+.row{display:flex;gap:8px;margin-top:8px}
+button,.btn2{flex:1;border:0;border-radius:11px;padding:11px;font:700 15px Heebo;cursor:pointer;text-align:center}
+button{background:linear-gradient(90deg,#2fd3a8,#4bb8ff);color:#04172b}
+.btn2{background:#13284d;color:#e8f1ff;border:1px solid #2a4f8f}
+.note{font-size:10px;color:#6b7fa3;text-align:center;margin-top:6px}
+#sheet.min #blist,#sheet.min .row,#sheet.min .lh,#sheet.min .addrow{display:none}
+.lh{display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-bottom:6px}
+.lhr{display:flex;align-items:center;gap:8px}
+.lhr #clearlist{padding:3px 8px;font-size:13px;border-radius:8px}
+.lh span{font-size:12px;color:#8fb3e8}
+#blist{max-height:38vh;overflow:auto;background:#030915;border:1px solid #1d3a6b;border-radius:10px;padding:4px 8px}
+.cat{font-size:12px;color:#5ef2c9;font-weight:700;margin:8px 0 2px}
+.li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0f2140;font-size:14px}
+.li.off{opacity:.38}.li.off .nm{text-decoration:line-through}
+.li input{width:18px;height:18px;accent-color:#2fd3a8}
+.li .nm{flex:1}
+.qb{display:flex;align-items:center;gap:6px}
+.qb button{flex:0;width:26px;height:26px;padding:0;border-radius:7px;background:#13284d;color:#fff;font-size:16px}
+.qb span{min-width:16px;text-align:center;font-weight:700}
+.del{flex:0;background:none;color:#ff6b81;padding:0 4px;font-size:15px}
+.lh{cursor:pointer}.lh b:after{content:' ▾';color:#8fb3e8}
+#sheet.fold #blist,#sheet.fold .addrow{display:none}#sheet.fold .lh b:after{content:' ▴'}
+/* téléphone */
+@media (max-width:899px){
+ #big{font-size:38px}#hud{top:10px}
+ #list{top:auto;bottom:78px;left:10px;right:10px;width:auto;max-width:none;max-height:17vh;font-size:11px}
+ #blist{max-height:26vh}
+ #sheet{padding:8px}.note{display:none}
+}
+/* ordinateur : panneau à gauche, carte à droite */
+@media (min-width:900px){
+ #sheet{left:16px;right:auto;top:16px;bottom:16px;width:360px;display:flex;flex-direction:column}
+ #blist{max-height:none;flex:1}
+ #sheet.min{bottom:auto}
+ #hud{left:376px}
+ #list{top:auto;bottom:16px;right:16px;width:270px;max-width:none;max-height:26vh;font-size:12px}
+ #cart{left:16px;right:auto;width:400px;height:auto;top:16px;bottom:16px;border-radius:20px;border:2px solid var(--c,#5ef2c9)}
+}
+.addrow{display:flex;gap:6px;margin-top:8px}
+.addrow input{flex:1;background:#030915;color:#e8f1ff;border:1px solid #1d3a6b;border-radius:10px;padding:9px;font:14px Heebo}
+#again{display:none}
+#sheet.min #again{display:block;width:100%}
+#scan{position:fixed;inset:0;z-index:6;background:rgba(3,8,20,.9);display:none;align-items:center;justify-content:center}
+#scan .wrap{position:relative;max-width:70%;max-height:70%}
+#scan img{max-width:100%;max-height:70vh;border-radius:10px;display:block}
+#scan .bar{position:absolute;left:0;right:0;height:4px;background:#5ef2c9;box-shadow:0 0 18px #5ef2c9;animation:sc 1.1s linear infinite alternate}
+#scan p{position:absolute;bottom:-34px;left:0;right:0;text-align:center;font-weight:700}
+@keyframes sc{from{top:0}to{top:100%}}
+.lb{pointer-events:auto;cursor:pointer}
+#cart{position:fixed;left:0;right:0;bottom:0;height:78vh;z-index:7;background:#071226;border-top:2px solid var(--c,#5ef2c9);border-radius:20px 20px 0 0;display:none;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,.6)}
+#cart.on{display:flex;animation:up .3s ease}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.ch{padding:14px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+.ch h2{font-size:20px;font-weight:900}
+.x{background:#13284d;color:#fff;flex:0;padding:6px 12px}
+#citems{flex:1;overflow:auto;padding:0 12px}
+.ci{border-bottom:1px solid #12274a;padding:8px 2px}
+.ci .top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.ci .top small{color:#8fb3e8;display:block;font-size:12px}
+.ci .pr{color:#ffc24b;font-weight:900;white-space:nowrap}
+.sw{background:#13284d;color:#cfe0ff;border:1px solid #2a4f8f;flex:0;padding:5px 9px;font-size:12px;white-space:nowrap}
+.alts{display:none;margin-top:6px}
+.ci.open .alts{display:block}
+.alt{display:flex;justify-content:space-between;padding:7px 9px;margin-top:4px;border-radius:8px;background:#0c1d3d;font-size:13px;cursor:pointer}
+.alt.sel{outline:2px solid #5ef2c9}
+.cf{padding:12px 14px 16px;border-top:1px solid #1d3a6b}
+.cf .tot{display:flex;justify-content:space-between;font-size:18px;font-weight:900;margin-bottom:8px}
+#done{position:fixed;inset:0;z-index:8;background:rgba(3,8,20,.94);display:none;align-items:center;justify-content:center;padding:24px}
+#done .box{background:#0a1a38;border:1px solid #2a4f8f;border-radius:16px;padding:18px;max-width:380px;width:100%}
+#done h3{font-size:19px;font-weight:900;margin-bottom:10px}
+#done ol{padding-right:20px;font-size:14px;line-height:1.8;color:#cfe0ff}
+#done .row{margin-top:14px}
+.cityrow{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:14px}.cityrow select{flex:1;background:#030915;color:#e8f1ff;border:1px solid #2a4f8f;border-radius:9px;padding:7px;font:14px Heebo}#sheet.min .cityrow{display:none}
+#splash{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(circle at 50% 45%,#0d2a52 0%,#050b18 65%);transition:opacity .7s ease,transform .7s ease}
+#splash.hide{opacity:0;transform:scale(1.08);pointer-events:none}
+#splash svg{width:120px;height:120px;filter:drop-shadow(0 0 22px rgba(94,242,201,.7));animation:pop .9s cubic-bezier(.2,1.6,.4,1) both}
+#splash .cartp{stroke-dasharray:260;stroke-dashoffset:260;animation:draw 1.1s .2s ease forwards}
+#splash .coin{animation:drop .7s .9s cubic-bezier(.3,1.5,.5,1) both}
+#splash h1{font-size:44px;font-weight:900;letter-spacing:1px;background:linear-gradient(90deg,#5ef2c9,#4bb8ff);-webkit-background-clip:text;background-clip:text;color:transparent;animation:up2 .7s .5s both}
+#splash p{font-size:18px;color:#cfe0ff;animation:up2 .7s .9s both}
+#splash small{font-size:12px;color:#6b7fa3;animation:up2 .7s 1.3s both}
+#splashbar{width:170px;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:8px;animation:up2 .7s 1.5s both}
+#splashbar i{display:block;height:100%;width:36%;border-radius:3px;background:linear-gradient(90deg,#5ef2c9,#4bb8ff);animation:barslide 1.1s ease-in-out infinite;box-shadow:0 0 10px #5ef2c9}
+#splash.hide #splashbar i{animation:none!important;width:100%!important;transform:none!important;transition:width .35s ease}
+#splashstatus{font-size:12px;color:#8fa3c9;margin-top:4px;animation:up2 .7s 1.6s both;min-height:16px}
+@keyframes barslide{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+@keyframes pop{from{transform:scale(.2) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes drop{from{transform:translateY(-60px);opacity:0}to{transform:none;opacity:1}}
+@keyframes up2{from{transform:translateY(18px);opacity:0}to{transform:none;opacity:1}}
+#cityban{position:fixed;left:0;right:0;top:38%;z-index:6;text-align:center;pointer-events:none;font-size:40px;font-weight:900;color:#fff;text-shadow:0 0 24px #4bb8ff,0 0 6px #000;opacity:0}
+#cityban.on{animation:ban 1.8s ease forwards}
+@keyframes ban{0%{opacity:0;transform:scale(.6)}20%{opacity:1;transform:scale(1.05)}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translateY(-30px)}}
+.fly{position:fixed;z-index:60;pointer-events:none;background:#0c1d3d;border:1px solid #5ef2c9;color:#e8f1ff;border-radius:20px;padding:3px 10px;font-size:12px;white-space:nowrap;box-shadow:0 0 14px rgba(94,242,201,.6)}
+#cicon{position:relative;font-size:26px;margin-left:8px;display:inline-block}
+#cicon b{position:absolute;top:-6px;left:-10px;background:#ff3b5c;color:#fff;border-radius:10px;font-size:11px;padding:0 5px;min-width:18px;text-align:center}
+#cicon.bump{animation:bump .35s ease}
+@keyframes bump{40%{transform:scale(1.35) rotate(-8deg)}}
+.ci.pop{animation:cin .45s ease both}
+@keyframes cin{from{opacity:0;transform:translateX(-40px) scale(.96)}to{opacity:1;transform:none}}
+#results{position:fixed;z-index:3;display:none;background:rgba(5,15,35,.88);border:1px solid #1d3a6b;border-radius:12px;padding:8px;overflow:auto;font-size:13px}
+.rk{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #12274a;cursor:pointer}
+.rk .dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}
+.rk .nm{flex:1}.rk .tt{font-weight:900;color:#ffc24b}
+.rk .ms{font-size:11px;color:#ff8a9c}
+.rk.first{background:rgba(94,242,201,.12);border-radius:8px}
+.split{margin-top:8px;padding:8px;border-radius:10px;background:#0c1d3d;border:1px dashed #5ef2c9;font-size:12px;line-height:1.5}
+.split details{margin-top:4px}.split summary{cursor:pointer;color:#5ef2c9}
+.rh{font-size:12px;color:#8fb3e8;margin:2px 0 4px}
+#modebtn{position:fixed;top:12px;left:12px;z-index:5;flex:0;padding:8px 11px;font-size:13px;background:#13284d;color:#e8f1ff;border:1px solid #2a4f8f}
+#hist{display:none;margin-top:8px;background:#030915;border:1px solid #1d3a6b;border-radius:10px;padding:8px;font-size:12px;max-height:30vh;overflow:auto}
+#hist.on{display:block}
+.hrow{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #0f2140}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;background:#3a2a0a;color:#ffc24b;margin-right:4px}
+body.simple #c,body.simple #labels{display:none}
+body.simple #results{top:110px!important;bottom:auto!important;max-height:none!important}
+@media (max-width:899px){#results{left:10px;right:10px;bottom:78px;max-height:34vh}#modebtn{top:8px;left:8px}}
+@media (min-width:900px){#results{right:16px;bottom:16px;width:320px;max-height:60vh}body.simple #results{right:auto;left:392px;width:520px}#modebtn{left:auto;right:16px}}
+</style>
+</head>
+<body>
+<div id="splash"><svg viewBox="0 0 100 100" fill="none"><path class="cartp" d="M10 22h12l9 40h44l9-28H28" stroke="#5ef2c9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="76" r="6" fill="#4bb8ff"/><circle cx="70" cy="76" r="6" fill="#4bb8ff"/><g class="coin"><circle cx="56" cy="40" r="11" fill="#ffc24b"/><text x="56" y="45" text-anchor="middle" font-size="14" font-weight="900" fill="#3a2a0a">₪</text></g></svg>
+<h1>סל חכם</h1><p>אותו סל. פחות כסף.</p><small>משווים 9 רשתות בשבילך בלחיצה אחת</small><div id="splashbar"><i></i></div><div id="splashstatus">טוען מחירים עדכניים...</div></div>
+<div id="cityban"></div>
+<div id="c"></div>
+<button id="modebtn">📋 תצוגה פשוטה</button>
+<div id="hud">
+  <div class="kicker">חיסכון על הסל שלך</div>
+  <div id="big">₪ <span id="bigNum">0.00</span></div>
+  <div id="status">סמנו מה צריך ולחצו "השווה מחירים"</div>
+</div>
+<div id="labels"></div>
+<div id="list"></div>
+<div id="results"></div>
+<div id="sheet">
+  <div class="cityrow"><span>📍 עיר</span><select id="city"></select><button id="locbtn" class="x" title="לפי המיקום שלי">🎯</button></div>
+  <div class="lh"><b>🏠 הרשימה הקבועה שלי</b><span class="lhr"><span id="lcount"></span><button id="clearlist" class="x" title="נקה את הסל">🗑</button></span></div>
+  <div id="blist"></div>
+  <div class="addrow"><input id="addin" placeholder="להוסיף מוצר… (למשל: שניצל)"><button id="addbtn" class="x">+</button></div>
+  <div class="row">
+    <button id="go">השווה מחירים</button>
+    <label class="btn2">📷 חשבונית <span class="tag">דמו</span><input type="file" accept="image/*" id="file" hidden></label>
+  </div>
+  <div class="row"><button class="btn2" id="histbtn">📈 היסטוריה וחיסכון</button></div>
+  <div id="hist"></div>
+  <button id="again">🛒 סל חדש</button>
+  <div class="note" id="datanote"></div>
+</div>
+<div id="cart">
+  <div class="ch"><h2><span id="cicon">🛒<b id="ccount">0</b></span><span id="ctitle"></span></h2><button class="x" id="cclose">✕</button></div>
+  <div id="citems"></div>
+  <div class="cf"><div class="tot"><span>סה״כ</span><span id="ctot"></span></div><button id="order">אשר והזמן ✓</button></div>
+</div>
+<div id="done"><div class="box">
+  <h3 id="dtitle"></h3>
+  <button id="extgo" style="display:none;width:100%;margin-bottom:8px">🛒 מלא את העגלה אוטומטית</button>
+  <div class="row"><button id="copy">📋 העתק את ההזמנה</button><button class="btn2" id="dclose">סגור</button></div>
+  <div class="note" id="cmsg"></div>
+</div></div>
+<div id="scan"><div class="wrap"><img id="rimg" alt=""><div class="bar"></div><p>סורק את החשבונית… (דמו)</p></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ================== DONNÉES ==================
+   Mode réel : le fichier prices.json (généré chaque jour par le serveur) est chargé.
+   Sinon : mode démo avec des prix d'exemple. */
+const CHAINS={
+ shufersal:{name:'שופרסל',c:'#ff3b5c',f:1.07}, rami:{name:'רמי לוי',c:'#ffc24b',f:0.93},
+ osher:{name:'אושר עד',c:'#4bd1ff',f:0.91}, victory:{name:'ויקטורי',c:'#b36bff',f:0.99},
+ yochananof:{name:'יוחננוף',c:'#3dffa8',f:0.96}, hazi:{name:'חצי חינם',c:'#ff8a3d',f:0.94},
+ carrefour:{name:'קרפור',c:'#2f7bff',f:1.0}, tivtaam:{name:'טיב טעם',c:'#ff5ec8',f:1.12},
+ mahsanei:{name:'מחסני השוק',c:'#c8ff3d',f:0.95}};
+const ORDER_SITES={rami:'https://www.rami-levy.co.il/he',shufersal:'https://www.shufersal.co.il/online/he/',victory:'https://www.victoryonline.co.il/',yochananof:'https://yochananof.co.il/',carrefour:'https://www.carrefour.co.il/',hazi:'https://shop.hazi-hinam.co.il/',osher:'https://osherad.co.il/',tivtaam:'https://www.tivtaam.co.il/',mahsanei:'https://www.mck.co.il/'};
+const P=[
+['חלב 3% 1 ל׳',['חלב'],6.9,[['תנובה',1],['טרה',.97],['יטבתה',1.04],['מותג הרשת',.9]]],
+['לחם אחיד',['לחם'],8.5,[['אנג׳ל',1],['ברמן',1.02],['מותג הרשת',.88]]],
+['ביצים L 12',['ביצים','ביצה'],13.9,[['משק עמית',1],['ביצי הגליל',1.05],['מותג הרשת',.92]]],
+['קוטג׳ 5%',['קוטג'],6.4,[['תנובה',1],['טרה',.96],['שטראוס',.98]]],
+['גבינה צהובה 200 ג׳',['גבינה צהובה','צהובה'],15.9],['גבינה לבנה 5%',['גבינה לבנה','לבנה'],5.9],['יוגורט',['יוגורט'],4.2],
+['חמאה 200 ג׳',['חמאה'],9.9],['שמנת מתוקה',['שמנת'],7.5],['במבה 80 ג׳',['במבה'],4.9,[['אסם',1],['במבה נוגט',1.1]]],['ביסלי',['ביסלי'],5.2],
+['קפה טורקי 200 ג׳',['קפה'],14.9,[['עלית',1],['אחווה',.9],['מותג הרשת',.82]]],['נס קפה 200 ג׳',['נס','נסקפה'],29.9],['תה 25 שקיות',['תה'],9.9],['סוכר 1 ק״ג',['סוכר'],5.9],
+['קמח 1 ק״ג',['קמח'],5.2],['אורז 1 ק״ג',['אורז'],9.9],['פסטה 500 ג׳',['פסטה','ספגטי'],5.5,[['אסם',1],['ברילה',1.15],['מותג הרשת',.8]]],['שמן קנולה 1 ל׳',['שמן'],12.9],
+['רסק עגבניות',['רסק'],3.9],['טונה 4 יח׳',['טונה'],24.9],['חומוס 400 ג׳',['חומוס'],7.9],['טחינה גולמית',['טחינה'],16.9],
+['קטשופ',['קטשופ'],9.5],['חזה עוף 1 ק״ג',['עוף','חזה'],39.9,[['עוף טוב',1],['מאמא עוף',.95],['זוגלובק',1.08],['מותג הרשת',.88]]],['שניצל קפוא',['שניצל'],32.9],['בשר טחון 500 ג׳',['טחון','בשר'],34.9],
+['סלמון',['סלמון','דג'],59.9],['תפוחי אדמה 1 ק״ג',['תפוחי אדמה','תפוא','תפו״א'],4.9],['עגבניות 1 ק״ג',['עגבני'],7.9],
+['מלפפונים 1 ק״ג',['מלפפון'],6.9],['בצל 1 ק״ג',['בצל'],4.5],['בננה 1 ק״ג',['בננ'],8.9],['תפוחים 1 ק״ג',['תפוח'],10.9],
+['קוקה קולה 1.5 ל׳',['קולה','קוקה'],8.9,[['קוקה קולה',1],['פפסי',.9],['מותג הרשת',.6]]],['מים מינרליים 6×1.5',['מים'],14.9],['מיץ תפוזים',['מיץ'],11.9],
+['נייר טואלט 32',['טואלט','נייר'],39.9,[['לילי',1],['סנו',1.06],['מותג הרשת',.82]]],['אבקת כביסה',['כביסה','אבקת'],34.9],['סבון כלים',['כלים','סבון'],9.9],
+['שמפו',['שמפו'],17.9],['משחת שיניים',['שיניים','משחת'],12.9],['חיתולים',['חיתול'],49.9],['שוקולד',['שוקולד'],5.9],['דגני בוקר',['דגני','קורנפלקס'],17.9]];
+const CITY_LIST=[
+ {id:'rishon',name:'ראשון לציון',lat:31.964,lng:34.804},{id:'holon',name:'חולון',lat:32.01,lng:34.78},{id:'oryehuda',name:'אור יהודה',lat:32.03,lng:34.85},
+ {id:'netanya',name:'נתניה',lat:32.32,lng:34.86},{id:'ashdod',name:'אשדוד',lat:31.80,lng:34.65},{id:'ashkelon',name:'אשקלון',lat:31.67,lng:34.57},
+ {id:'haifa',name:'חיפה',lat:32.79,lng:34.99},{id:'beersheva',name:'באר שבע',lat:31.25,lng:34.79},
+ {id:'tlv',name:'תל אביב-יפו',lat:32.08,lng:34.78},{id:'jlm',name:'ירושלים',lat:31.77,lng:35.21},{id:'petah',name:'פתח תקווה',lat:32.09,lng:34.88}];
+let CITY=null;
+const hash=s=>{let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))|0;return Math.abs(h)};
+let MODE='demo',UPDATED='',STORES=[],ITEMS=[];
+
+function buildDemo(){
+  const ids=Object.keys(CHAINS);
+  STORES=ids.map((k,i)=>{const a=i/ids.length*6.283+.4,r=i%2?17:10;return {id:k,chain:k,name:CHAINS[k].name,c:CHAINS[k].c,p:[Math.cos(a)*r,Math.sin(a)*r]}});
+  ITEMS=[];P.forEach((pr,gi)=>{(pr[3]||[['מותג מוביל',1],['מותג הרשת',.86],['פרימיום',1.22]]).forEach(([brand,m])=>{
+    const prices={};STORES.forEach(st=>{let v=pr[2]*m*CHAINS[st.chain].f*(1+((hash(pr[0]+brand+st.id+(CITY?CITY.id:''))%17)-8)/100);
+      if(hash(pr[0]+brand+st.id+(CITY?CITY.id:''))%29===0)return; /* produit absent dans ce magasin */
+      const fl=Math.floor(v);prices[st.id]=v-fl>.5?fl+.9:fl+.5});
+    ITEMS.push({id:'d'+gi+'_'+brand,n:pr[0],m:brand,g:gi,p:prices})})})}
+async function loadReal(){
+  const r=await fetch('prices/'+CITY.id+'.json',{cache:'no-store'});if(!r.ok)throw 0;const d=await r.json();
+  if(!d.stores||!d.items||!d.items.length)throw 0;
+  const lats=d.stores.filter(s=>s.lat).map(s=>s.lat),lngs=d.stores.filter(s=>s.lng).map(s=>s.lng);
+  const la0=Math.min(...lats),la1=Math.max(...lats),ln0=Math.min(...lngs),ln1=Math.max(...lngs);
+  STORES=d.stores.map((s,i)=>{const ch=CHAINS[s.chain]||{name:s.chain,c:'#9fb4d8'};let p;
+    if(s.lat&&la1>la0){p=[((s.lng-ln0)/(ln1-ln0)-.5)*36,(.5-(s.lat-la0)/(la1-la0))*36]}else{const a=i*2.4;p=[Math.cos(a)*14,Math.sin(a)*14]}
+    return {id:String(s.id),chain:s.chain,name:ch.name+(s.short?' '+s.short:''),addr:s.address||'',c:ch.c,p}});
+  ITEMS=d.items.map(x=>({id:x.b,n:x.n,m:x.m||'',p:x.p}));MODE='real';UPDATED=d.updated||''}
+async function loadCities(){try{const r=await fetch('prices/cities.json',{cache:'no-store'});if(r.ok){const c=await r.json();if(Array.isArray(c)&&c.length)return c}}catch(e){}return CITY_LIST}
+
+/* ---------- recherche de produits ---------- */
+const norm=s=>s.replace(/['׳"״]/g,'').trim();
+function keywordsFor(label){const pr=P.find(p=>p[0]===label);return pr?pr[1]:[norm(label).split(/\s+/)[0]]}
+function matchGroup(line){const l=norm(line),w=l.split(/\s+/);
+  for(const pr of P)for(const k of pr[1]){const kk=norm(k);if(kk.includes(' ')?l.includes(kk):w.some(x=>x.startsWith(kk)||x.startsWith('ה'+kk)))return pr}return null}
+function candidates(label){
+  if(MODE==='demo'){const pr=P.find(p=>p[0]===label)||matchGroup(label);if(!pr)return[];const gi=P.indexOf(pr);return ITEMS.filter(x=>x.g===gi)}
+  const ks=keywordsFor(label).map(norm),extra=(norm(label).match(/\d+%/)||[])[0];
+  let c=ITEMS.filter(x=>{const w=norm(x.n).split(/\s+/);return ks.some(k=>w.some(y=>y.startsWith(k)))&&(!extra||x.n.includes(extra))});
+  const cov=x=>Object.keys(x.p).length,avg=x=>{const v=Object.values(x.p);return v.reduce((a,b)=>a+b,0)/v.length};
+  return c.sort((a,b)=>cov(b)-cov(a)||avg(a)-avg(b)).slice(0,8)}
+/* prix le moins cher d'une ligne dans un magasin (parmi les produits équivalents) */
+function bestIn(line,st){let best=null;line.c.forEach((x,k)=>{const v=x.p[st.id];if(v!=null&&(!best||v<best.v))best={v,k}});return best}
+
+/* ================== SCÈNE 3D ================== */
+const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+document.getElementById('c').appendChild(R.domElement);
+const S=new THREE.Scene();S.background=new THREE.Color(0x050b18);S.fog=new THREE.Fog(0x050b18,60,160);
+const cam=new THREE.PerspectiveCamera(50,1,.1,300);
+function size(){const w=innerWidth,h=innerHeight;R.setSize(w,h);cam.aspect=w/h;
+  if(w>=900)cam.setViewOffset(w,h,-190,0,w,h);else cam.setViewOffset(w,h,0,h*.17,w,h);cam.updateProjectionMatrix()}
+size();addEventListener('resize',size);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshBasicMaterial({color:0x07122a}));ground.rotation.x=-Math.PI/2;S.add(ground);
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+function road(n,len,col,op){const pts=[];let x=(rnd()-.5)*90,z=(rnd()-.5)*90,a=rnd()*6.28;
+  for(let i=0;i<n;i++){pts.push(new THREE.Vector3(x,.02,z));a+=(rnd()-.5)*.9;x+=Math.cos(a)*len;z+=Math.sin(a)*len}
+  S.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op,blending:THREE.AdditiveBlending})))}
+for(let i=0;i<110;i++)road(6+rnd()*14,1.5+rnd()*2.5,0x2a4f8f,.55);
+for(let i=0;i<14;i++)road(18,4.5,0x5a9bff,.85);
+const rc=new THREE.CatmullRomCurve3([[-60,-30],[-30,-18],[-10,-14],[4,4],[14,22],[40,40],[70,46]].map(p=>new THREE.Vector3(p[0],.05,p[1])));
+S.add(new THREE.Mesh(new THREE.TubeGeometry(rc,120,.35,6),new THREE.MeshBasicMaterial({color:0x2fe0ff})));
+S.add(new THREE.Mesh(new THREE.TubeGeometry(rc,120,1.6,6),new THREE.MeshBasicMaterial({color:0x2fe0ff,transparent:true,opacity:.12,blending:THREE.AdditiveBlending,depthWrite:false})));
+const gc=document.createElement('canvas');gc.width=gc.height=64;const g=gc.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);
+gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.3,'rgba(255,255,255,.35)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);
+const glowTex=new THREE.CanvasTexture(gc),labels=document.getElementById('labels');
+const storeGroup=new THREE.Group();S.add(storeGroup);
+function buildStores(){while(storeGroup.children.length)storeGroup.remove(storeGroup.children[0]);labels.innerHTML='';STORES.forEach(st=>{const col=new THREE.Color(st.c),x=st.p[0],z=st.p[1];
+  const dot=new THREE.Mesh(new THREE.SphereGeometry(.55,16,12),new THREE.MeshBasicMaterial({color:col}));dot.position.set(x,.6,z);storeGroup.add(dot);st.dot=dot;
+  st.glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+  st.glow.position.set(x,.6,z);st.glow.scale.set(5,5,1);storeGroup.add(st.glow);
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.25,7,8,1,true),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false}));
+  beam.position.set(x,3.5,z);storeGroup.add(beam);st.beam=beam;st.t0=clock.getElapsedTime()+.5+STORES.indexOf(st)*.13;
+  st.anchor=new THREE.Vector3(x,1.2,z);st.pulse=0;st.total=0;st.shown=0;st.miss=0;
+  st.el=document.createElement('div');st.el.className='lb';st.el.style.setProperty('--c',st.c);
+  st.el.innerHTML=`${st.name}<b>₪ <span>0.00</span></b><div class="chip">הכי זול ✓</div>`;st.el.onclick=()=>openCart(st);labels.appendChild(st.el)})}
+let bigT=0,bigS=0,zoomT0=-9;const ease=p=>1-Math.pow(1-p,3),back=p=>1+2.7*Math.pow(p-1,3)+1.7*Math.pow(p-1,2);const bigEl=document.getElementById('bigNum'),v3=new THREE.Vector3(),clock=new THREE.Clock();
+function loop(){const t=clock.getElapsedTime(),a=t*.06,zp=Math.min(1,Math.max(0,(t-zoomT0)/1.8)),k=(cam.aspect<1?Math.min(2.6,1.3/cam.aspect):1)*(1+1.6*(1-ease(zp)));
+  cam.position.set(Math.sin(a)*30*k,36*k,Math.cos(a)*30*k);cam.lookAt(0,0,3);
+  STORES.forEach(st=>{if(!st.el)return;const ap=Math.min(1,Math.max(0,(t-st.t0)/.7)),dy=(1-back(ap))*14;
+    st.dot.position.y=.6+dy;st.glow.position.y=.6+dy;st.beam.position.y=3.5+dy;st.beam.scale.y=Math.max(.01,ap);st.anchor.y=1.2+dy;st.el.style.opacity=ap;st.pulse*=.93;const s=5+st.pulse*6;st.glow.scale.set(s,s,1);
+    st.shown+=(st.total-st.shown)*.15;st.el.querySelector('span').textContent=st.shown.toFixed(2);
+    v3.copy(st.anchor).project(cam);st.el.style.left=((v3.x+1)/2*innerWidth)+'px';st.el.style.top=((1-v3.y)/2*innerHeight)+'px'});
+  bigS+=(bigT-bigS)*.12;bigEl.textContent=bigS.toFixed(2);
+  if(!document.body.classList.contains('simple'))R.render(S,cam);requestAnimationFrame(loop)}
+
+/* ================== LISTE FIXE ================== */
+const CATS=[['🥛 חלב וביצים',['חלב 3% 1 ל׳','ביצים L 12','קוטג׳ 5%','גבינה צהובה 200 ג׳','גבינה לבנה 5%','יוגורט','חמאה 200 ג׳']],
+ ['🍞 לחם',['לחם אחיד']],['🥬 ירקות ופירות',['עגבניות 1 ק״ג','מלפפונים 1 ק״ג','בצל 1 ק״ג','תפוחי אדמה 1 ק״ג','בננה 1 ק״ג','תפוחים 1 ק״ג']],
+ ['🍗 בשר ודגים',['חזה עוף 1 ק״ג','בשר טחון 500 ג׳','טונה 4 יח׳']],
+ ['🍝 מזווה ובישול',['אורז 1 ק״ג','פסטה 500 ג׳','קמח 1 ק״ג','סוכר 1 ק״ג','שמן קנולה 1 ל׳','רסק עגבניות','חומוס 400 ג׳','טחינה גולמית','קטשופ']],
+ ['☕ שתייה',['קפה טורקי 200 ג׳','תה 25 שקיות','מים מינרליים 6×1.5']],['🧻 ניקיון וטיפוח',['נייר טואלט 32','סבון כלים','אבקת כביסה','שמפו','משחת שיניים']]];
+const DEFQ={'חלב 3% 1 ל׳':2,'יוגורט':4,'פסטה 500 ג׳':2};
+const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let LIST=LS.get('sal_list',null);if(!Array.isArray(LIST))LIST=CATS.flatMap(([c,ns])=>ns.map(n=>({n,c,q:DEFQ[n]||1,on:true})));
+const save=()=>LS.set('sal_list',LIST),blist=document.getElementById('blist'),sheet=document.getElementById('sheet');
+function renderList(){blist.innerHTML='';let cur=null;
+  LIST.forEach((x,i)=>{if(x.c!==cur){cur=x.c;const h=document.createElement('div');h.className='cat';h.textContent=cur;blist.appendChild(h)}
+    const r=document.createElement('div');r.className='li'+(x.on?'':' off');
+    r.innerHTML=`<input type="checkbox" ${x.on?'checked':''}><span class="nm">${x.n}</span><div class="qb"><button>−</button><span>${x.q}</span><button>+</button></div>${x.custom?'<button class="del">✕</button>':''}`;
+    r.querySelector('input').onchange=e=>{x.on=e.target.checked;save();renderList()};
+    const b=r.querySelectorAll('.qb button');b[0].onclick=()=>{x.q=Math.max(1,x.q-1);save();renderList()};b[1].onclick=()=>{x.q++;save();renderList()};
+    if(x.custom)r.querySelector('.del').onclick=()=>{LIST.splice(i,1);save();renderList()};blist.appendChild(r)});
+  document.getElementById('lcount').textContent=LIST.filter(x=>x.on).length+' מוצרים מסומנים'}
+function addItem(){const inp=document.getElementById('addin'),t=inp.value.trim();if(!t)return;
+  const pr=matchGroup(t),n=pr?pr[0]:t,ex=LIST.find(x=>x.n===n);
+  if(ex)ex.on=true;else LIST.push({n,c:'➕ הוספתי',q:1,on:true,custom:true});inp.value='';save();renderList();blist.scrollTop=blist.scrollHeight}
+document.getElementById('addbtn').onclick=addItem;document.getElementById('addin').onkeydown=e=>{if(e.key==='Enter')addItem()};
+document.querySelector('.lh').onclick=()=>sheet.classList.toggle('fold');
+document.getElementById('clearlist').onclick=e=>{e.stopPropagation();
+  if(!LIST.some(x=>x.on||x.custom))return;
+  if(!confirm('לנקות את כל הסל? כל הסימונים וההוספות יימחקו (הקטגוריות יישארו)'))return;
+  LIST=LIST.filter(x=>!x.custom).map(x=>({...x,on:false,q:DEFQ[x.n]||1}));save();renderList()};
+
+/* ================== COMPARAISON ================== */
+const listEl=document.getElementById('list'),resEl=document.getElementById('results'),status=document.getElementById('status');
+let timer=null,LINES=[],LAST=null;
+function makeLines(arr){return arr.map(x=>({label:x.n,q:x.q,c:candidates(x.n)}))}
+function runLines(lines,refChain){
+  clearInterval(timer);if(!lines.length)return;LINES=lines;
+  STORES.forEach(s=>{s.total=0;s.miss=0;s.el.classList.remove('best')});bigT=0;listEl.innerHTML='';listEl.style.display='block';resEl.style.display='none';
+  sheet.classList.add('min');document.getElementById('hist').classList.remove('on');status.textContent='בודק מחירים ב-'+STORES.length+' סניפים…';let i=0;
+  timer=setInterval(()=>{
+    if(i>=lines.length){clearInterval(timer);return finish(refChain)}
+    const L=lines[i++],row=document.createElement('div');row.className='it';
+    if(L.c.length){let mn=Infinity;STORES.forEach(s=>{const b=bestIn(L,s);if(b){s.total+=b.v*L.q;mn=Math.min(mn,b.v*L.q)}else s.miss++;s.pulse=1});
+      row.innerHTML=`<span>${L.q>1?L.q+'× ':''}${L.label}</span><span>${mn<Infinity?'מ-₪'+mn.toFixed(2):'—'}</span>`;
+      const r=rank()[0];bigT=Math.max(0,...STORES.filter(s=>s.miss===r.miss).map(s=>s.total))-r.total;
+    }else{row.className='it nf';row.innerHTML=`<span>${L.label}</span><span>לא נמצא</span>`}
+    listEl.prepend(row);if(L.c.length&&lines.length<=40){const b=rank()[0];if(b&&b.el)flyTo(L.label,listEl,b.el)}},Math.max(90,Math.min(380,4000/lines.length)))}
+function flyTo(text,fromEl,toEl,done){
+  const f=fromEl.getBoundingClientRect(),t=toEl.getBoundingClientRect();if(!f.width||!t.width){done&&done();return}
+  const c=document.createElement('div');c.className='fly';c.textContent=text;document.body.appendChild(c);
+  const x0=f.left+f.width/2,y0=f.top+Math.min(20,f.height/2),x1=t.left+t.width/2,y1=t.top+t.height/2;
+  c.style.left=x0+'px';c.style.top=y0+'px';
+  const an=c.animate([{transform:'translate(-50%,-50%) scale(1)',opacity:1},{transform:`translate(calc(-50% + ${(x1-x0)/2}px),calc(-50% + ${(y1-y0)/2-60}px)) scale(.9)`,opacity:1,offset:.5},{transform:`translate(calc(-50% + ${x1-x0}px),calc(-50% + ${y1-y0}px)) scale(.2)`,opacity:.2}],{duration:650,easing:'cubic-bezier(.4,0,.6,1)'});
+  an.onfinish=()=>{c.remove();done&&done()}}
+const rank=()=>[...STORES].sort((a,b)=>a.miss-b.miss||a.total-b.total);
+function bestSplit(){let best=null;
+  for(let a=0;a<STORES.length;a++)for(let b=a+1;b<STORES.length;b++){const A=STORES[a],B=STORES[b];let cost=0,miss=0;const part=[];
+    LINES.forEach(L=>{if(!L.c.length)return;const x=bestIn(L,A),y=bestIn(L,B);
+      if(!x&&!y){miss++;return}const useA=x&&(!y||x.v<=y.v);cost+=(useA?x.v:y.v)*L.q;part.push([L.label,useA?A.name:B.name])});
+    if(!best||miss<best.miss||(miss===best.miss&&cost<best.cost))best={A,B,cost,miss,part}}
+  return best}
+function finish(refChain){
+  const R0=rank(),best=R0[0];if(!best||!LINES.some(l=>l.c.length)){status.textContent='לא זוהו מוצרים';return}
+  best.el.classList.add('best');listEl.style.display='none';
+  const same=R0.filter(s=>s.miss===best.miss),worst=same[same.length-1];
+  let ref=refChain&&STORES.find(s=>s.chain===refChain);
+  bigT=ref?Math.max(0,ref.total-best.total):worst.total-best.total;
+  status.textContent=ref?`שילמת ₪${ref.total.toFixed(2)} ב${ref.name} · ב${best.name} היית משלם ₪${best.total.toFixed(2)}`
+    :`הכי זול: ${best.name} ₪${best.total.toFixed(2)} · חוסך ₪${(worst.total-best.total).toFixed(2)} מול ${worst.name}`;
+  const sp=bestSplit();
+  resEl.innerHTML=`<div class="rh">דירוג הרשתות · לחץ על רשת כדי לפתוח עגלה</div>`+
+    R0.map((s,i)=>`<div class="rk${i?'':' first'}" data-id="${s.id}"><span class="dot" style="background:${s.c}"></span><span class="nm">${i?'':'🏆 '}${s.name}${s.miss?` <span class="ms">חסרים ${s.miss}</span>`:''}</span><span class="tt">₪${s.total.toFixed(2)}</span></div>`).join('')+
+    (sp&&sp.miss<=best.miss&&sp.cost<best.total-1?`<div class="split">🔀 <b>לפצל בין ${sp.A.name} ו${sp.B.name}: ₪${sp.cost.toFixed(2)}</b><br>חוסך עוד ₪${(best.total-sp.cost).toFixed(2)} לעומת ${best.name} בלבד
+      <details><summary>מה לקנות איפה</summary>${sp.part.map(p=>`<div>${p[0]} ← ${p[1]}</div>`).join('')}</details></div>`:'');
+  resEl.style.display='block';resEl.querySelectorAll('.rk').forEach(el=>el.onclick=()=>openCart(STORES.find(s=>s.id===el.dataset.id)));
+  LAST={best:best.name,total:best.total,save:bigT};
+  const H=LS.get('sal_hist',[]);H.unshift({t:Date.now(),best:best.name,total:+best.total.toFixed(2),save:+bigT.toFixed(2)});LS.set('sal_hist',H.slice(0,40));renderHist()}
+
+/* ---------- historique ---------- */
+function renderHist(){const H=LS.get('sal_hist',[]),el=document.getElementById('hist'),now=new Date();
+  const month=H.filter(h=>{const d=new Date(h.t);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
+  el.innerHTML=H.length?`<b>החודש: ${month.length} השוואות · חיסכון אפשרי ₪${month.reduce((a,h)=>a+h.save,0).toFixed(2)}</b>`+
+    H.map(h=>`<div class="hrow"><span>${new Date(h.t).toLocaleDateString('he-IL')} · ${h.best}</span><span>₪${h.total} <span style="color:#5ef2c9">(-₪${h.save})</span></span></div>`).join(''):'עוד אין השוואות שמורות'}
+document.getElementById('histbtn').onclick=()=>{renderHist();document.getElementById('hist').classList.toggle('on')};
+
+/* ================== PANIER & COMMANDE ================== */
+const cart=document.getElementById('cart'),citems=document.getElementById('citems');let cartStore=null,cartLines=[];
+function openCart(st){if(!LINES.length||!st)return;cartStore=st;
+  cartLines=LINES.filter(L=>L.c.length).map(L=>{const b=bestIn(L,st);return {L,sel:b?b.k:-1}});
+  cart.style.setProperty('--c',st.c);document.getElementById('ctitle').textContent='העגלה ב'+st.name;
+  document.getElementById('order').textContent='אשר והזמן ב'+st.name+' ✓';renderCart(true);cart.classList.add('on');
+  const icon=document.getElementById('cicon'),cnt=document.getElementById('ccount');let n=0;cnt.textContent=0;
+  citems.querySelectorAll('.ci').forEach((el,i)=>{if(el.dataset.miss)return;setTimeout(()=>{
+    const name=el.querySelector('.top div').firstChild.textContent;
+    flyTo(name,el,icon,()=>{n++;cnt.textContent=n;icon.classList.remove('bump');void icon.offsetWidth;icon.classList.add('bump')})},350+i*110)})}
+function renderCart(intro){const st=cartStore;let tot=0;citems.innerHTML='';let idx=0;
+  cartLines.forEach(cl=>{const L=cl.L,d=document.createElement('div');d.className='ci';
+    if(intro){d.classList.add('pop');d.style.animationDelay=(idx++*60)+'ms'}
+    if(cl.sel<0){d.dataset.miss=1;d.innerHTML=`<div class="top"><div>${L.label}<small style="color:#ff8a9c">לא נמכר בסניף הזה</small></div></div>`;citems.appendChild(d);return}
+    const x=L.c[cl.sel],p=x.p[st.id]*L.q;tot+=p;
+    d.innerHTML=`<div class="top"><div>${L.q>1?L.q+'× ':''}${L.label}<small>${x.m||x.n}</small></div><span class="pr">₪${p.toFixed(2)}</span><button class="sw">החלף ▾</button></div><div class="alts"></div>`;
+    const al=d.querySelector('.alts');
+    L.c.map((y,k)=>[y,k]).filter(([y])=>y.p[st.id]!=null).sort((a,b)=>a[0].p[st.id]-b[0].p[st.id]).forEach(([y,k])=>{
+      const a=document.createElement('div');a.className='alt'+(k===cl.sel?' sel':'');
+      a.innerHTML=`<span>${y.m?y.m+' · ':''}${MODE==='real'?y.n:''}</span><span>₪${(y.p[st.id]*L.q).toFixed(2)}</span>`;a.onclick=()=>{cl.sel=k;renderCart()};al.appendChild(a)});
+    d.querySelector('.sw').onclick=()=>d.classList.toggle('open');citems.appendChild(d)});
+  document.getElementById('ctot').textContent='₪'+tot.toFixed(2);st.cartTotal=tot}
+document.getElementById('cclose').onclick=()=>cart.classList.remove('on');
+const orderItems=()=>cartLines.filter(c=>c.sel>=0).map(c=>{const x=c.L.c[c.sel];return {q:c.L.q,name:MODE==='real'?x.n:c.L.label,brand:x.m||'',barcode:MODE==='real'?x.id:''}});
+let hasExt=false;
+window.addEventListener('message',e=>{if(e.data&&e.data.type==='SAL_ACK')hasExt=true;if(e.data&&e.data.type==='SAL_SENT')document.getElementById('cmsg').textContent='נשלח לתוסף ✓ האתר של הרשת נפתח בכרטיסייה חדשה'});
+try{window.postMessage({type:'SAL_PING'},'*')}catch(e){}
+document.getElementById('order').onclick=()=>{const st=cartStore,ext=st.chain==='rami';
+  document.getElementById('dtitle').textContent=`הזמנה ב${st.name} · ₪${st.cartTotal.toFixed(2)}`;
+  document.getElementById('extgo').style.display=ext?'block':'none';
+  document.getElementById('cmsg').innerHTML=ext?'':`מילוי אוטומטי עדיין רק ברמי לוי. <a href="${ORDER_SITES[st.chain]||'#'}" style="color:#4bb8ff">לאתר של ${CHAINS[st.chain]?CHAINS[st.chain].name:st.name}</a>`;
+  document.getElementById('done').style.display='flex'};
+document.getElementById('extgo').onclick=()=>{const m=document.getElementById('cmsg');
+  if(!hasExt){m.textContent='צריך להתקין את התוסף "סל חכם" ב-Chrome במחשב';return}
+  window.postMessage({type:'SAL_ORDER',store:cartStore.chain,items:orderItems()},'*')};
+document.getElementById('dclose').onclick=()=>document.getElementById('done').style.display='none';
+document.getElementById('copy').onclick=async()=>{const t='תזמין לי ב'+cartStore.name+':\n'+orderItems().map(i=>`${i.q}× ${i.name}${i.brand?' – '+i.brand:''}`).join('\n');
+  const m=document.getElementById('cmsg');try{await navigator.clipboard.writeText(t);m.textContent='הועתק ✓ אפשר להדביק בתוסף או בצ׳אט'}catch(e){m.textContent=t}};
+
+/* ================== BOUTONS ================== */
+document.getElementById('go').onclick=()=>runLines(makeLines(LIST.filter(x=>x.on)));
+document.getElementById('again').onclick=()=>{sheet.classList.remove('min');clearInterval(timer);resEl.style.display='none';listEl.style.display='none'};
+const RECEIPT=['חלב 3% 1 ל׳|2','לחם אחיד|1','ביצים L 12|1','קוטג׳ 5%|3','גבינה צהובה 200 ג׳|1','חזה עוף 1 ק״ג|1','עגבניות 1 ק״ג|1','מלפפונים 1 ק״ג|1','בננה 1 ק״ג|1','במבה 80 ג׳|2','קפה טורקי 200 ג׳|1','פסטה 500 ג׳|2','שמן קנולה 1 ל׳|1','נייר טואלט 32|1','קוקה קולה 1.5 ל׳|2'].map(s=>{const[n,q]=s.split('|');return{n,q:+q}});
+document.getElementById('file').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  const sc=document.getElementById('scan');document.getElementById('rimg').src=URL.createObjectURL(f);sc.style.display='flex';
+  setTimeout(()=>{sc.style.display='none';runLines(makeLines(RECEIPT),'shufersal')},2400);e.target.value=''};
+const modebtn=document.getElementById('modebtn');
+function setMode(simple){document.body.classList.toggle('simple',simple);modebtn.textContent=simple?'🗺️ מפה תלת-ממד':'📋 תצוגה פשוטה';LS.set('sal_simple',simple)}
+modebtn.onclick=()=>setMode(!document.body.classList.contains('simple'));
+
+/* ================== DÉMARRAGE ================== */
+const citySel=document.getElementById('city'),datanote=document.getElementById('datanote');
+let CITIES=CITY_LIST;
+async function useCity(id){
+  CITY=CITIES.find(c=>c.id===id)||CITIES[0];citySel.value=CITY.id;LS.set('sal_city',CITY.id);
+  clearInterval(timer);LINES=[];resEl.style.display='none';listEl.style.display='none';bigT=0;cart.classList.remove('on');sheet.classList.remove('min');
+  MODE='demo';try{await loadReal()}catch(e){buildDemo()}
+  buildStores();zoomT0=clock.getElapsedTime();
+  const ban=document.getElementById('cityban');ban.textContent='📍 '+CITY.name;ban.classList.remove('on');void ban.offsetWidth;ban.classList.add('on');
+  status.textContent=`${STORES.length} סניפים ב${CITY.name} · סמנו מה צריך ולחצו "השווה מחירים"`;
+  datanote.textContent=MODE==='real'?`מחירים אמיתיים מקבצי שקיפות המחירים · ${CITY.name} · עודכן ${UPDATED}`
+    :`מצב דמו · מחירים וסניפים לדוגמה (המחירים האמיתיים של ${CITY.name} יופיעו אחרי חיבור השרת)`}
+citySel.onchange=()=>useCity(citySel.value);
+document.getElementById('locbtn').onclick=()=>{
+  if(!navigator.geolocation){datanote.textContent='אין גישה למיקום בדפדפן הזה – בחרו עיר מהרשימה';return}
+  navigator.geolocation.getCurrentPosition(p=>{const{latitude:a,longitude:o}=p.coords;
+    let best=CITIES[0],bd=1e9;CITIES.forEach(c=>{if(c.lat==null)return;const d=(c.lat-a)**2+(c.lng-o)**2;if(d<bd){bd=d;best=c}});useCity(best.id)},
+    ()=>{datanote.textContent='לא קיבלתי מיקום – בחרו עיר מהרשימה'})};
+(async()=>{
+  CITIES=await loadCities();
+  citySel.innerHTML=CITIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  renderList();setMode(LS.get('sal_simple',false));loop();
+  const stEl=document.getElementById('splashstatus'),t0=Date.now();
+  await useCity(LS.get('sal_city','rishon'));
+  if(stEl)stEl.textContent=MODE==='real'?'מחירים עדכניים נטענו ✓':'נטען במצב הדגמה';
+  const sp=document.getElementById('splash'),hide=()=>{sp.classList.add('hide');setTimeout(()=>sp.remove(),800);zoomT0=clock.getElapsedTime();STORES.forEach((st,i)=>st.t0=zoomT0+.3+i*.13)};
+  sp.onclick=hide;setTimeout(hide,Math.max(500,2600-(Date.now()-t0)));
+})();
+</script>
+</body>
+</html>
